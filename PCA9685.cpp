@@ -1,5 +1,9 @@
 #include "PCA9685.h"
-#include "cmath"
+#include <cmath>
+
+#ifdef ESP_PLATFORM
+#include <freertos/task.h>
+#endif
 
 /**
  * @brief Construct a new PCA9685::PCA9685 object
@@ -8,8 +12,24 @@
  * @param address I2C address.
  * @param frequency Initial signal frequency.
  */
+#ifdef ESP_PLATFORM
+PCA9685::PCA9685(
+	uint8_t devAddr, 
+	gpio_num_t sda_pin, 
+	gpio_num_t scl_pin, 
+	i2c_mode_t mode, 
+	uint32_t i2c_freq, 
+	uint32_t pca_freq)
+	: I2Cdev(
+		devAddr,
+		sda_pin,
+		scl_pin,
+		mode,
+		i2c_freq) 
+#else
 PCA9685::PCA9685(int bus, int address, int frequency) 
 	: I2Cdev(bus, address) 
+#endif
 {
 	reset();
 	set_pwm_freq(frequency);
@@ -17,14 +37,14 @@ PCA9685::PCA9685(int bus, int address, int frequency)
 
 	write_byte(MODE2, OUTDRV);
 	write_byte(MODE1, ALLCALL);
-	usleep(1000);
+	sleep_ms(5);
 
 	uint8_t mode1_val = 0;
 	read_byte(MODE1, &mode1_val);
 	mode1_val &= ~SLEEP;
 
 	write_byte(MODE1, mode1_val);
-	usleep(1000);
+	sleep_ms(5);
 }
 
 PCA9685::~PCA9685() {
@@ -62,7 +82,7 @@ void PCA9685::set_pwm_freq(int freq_hz) {
 	write_byte(MODE1, newmode);
 	write_byte(PRESCALE, prescale);
 	write_byte(MODE1, oldmode);
-	usleep(1000);
+	sleep_ms(5);
 
 	write_byte(MODE1, oldmode | RESTART);
 }
@@ -117,4 +137,12 @@ void PCA9685::set_pwm_us(int channel, int us) {
 	auto bits_per_ms = 4096 / period_ms;
 	auto bits = us * bits_per_ms;
 	set_pwm(channel, 0, bits);
+}
+
+void PCA9685::sleep_ms(int t_ms) {
+#ifdef ESP_PLATFORM
+    vTaskDelay(dt_ms / portTICK_PERIOD_MS);
+#else
+	usleep(t_ms * 1000);
+#endif
 }

@@ -35,7 +35,11 @@
 //! Main class that exports features for PCA9685 chip
 class PCA9685 : public I2Cdev {
 public:
+#ifdef ESP_PLATFORM
+    PCA9685(uint8_t devAddr, gpio_num_t sda_pin, gpio_num_t scl_pin, i2c_mode_t mode, uint32_t i2c_freq, uint32_t pca_freq);
+#else
 	PCA9685(int bus, int address, int frequency);
+#endif
 	virtual ~PCA9685();
 
 	void set_pwm_freq(int freq_hz);
@@ -48,6 +52,8 @@ public:
 private:
 	int i2c_fd;
 	int frequency = 200;
+	
 	void reset(void);
+	void sleep_ms(int t);
 };
 #endif
